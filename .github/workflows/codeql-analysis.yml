@@ -1,0 +1,85 @@
+name: "GWAM SAST"
+    
+on:		
+  push:
+    branches: [develop, main, master] # Update to match your branching strategy
+  pull_request:
+    branches: [develop, main, master] # Update to match your branching strategy
+  schedule:
+    # [DO NOT CHANGE] run the scan on a weekly basis to pick up any new vulnerabilities published into the CVE repositories
+    - cron: '0 23 * * 4'
+    
+jobs:
+  analyze:
+    name: SAST Scan
+    # CodeQL runs on ubuntu-latest, windows-latest, and macos-latest.
+    runs-on: ubuntu-latest # replace with "windows-latest" or "macos-latest" based on target build requirements
+    # For code that has dependencies that are currently hosted within the Manulife/JH network on platforms such as Artifactory,
+    # comment out the above `runs-on` line, uncomment the below, and update with the appropriate target build platform
+    # (i.e. Windows or Linux). As of right now, there is no MacOS version available.
+    # runs-on: [self-hosted, X64, ets, gwam, acr, Linux]
+    
+    permissions:
+      # required for all workflows
+      security-events: write
+    
+      # only required for workflows in private repositories
+      actions: read
+      contents: read
+        
+    strategy:
+      fail-fast: false
+      matrix:
+        language: [java,javascript,python]
+        # CodeQL supports [ 'cpp', 'csharp', 'go', 'java', 'javascript', 'python', 'ruby' ]
+        # Learn more about CodeQL language support at https://aka.ms/codeql-docs/language-support
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
+    
+      # Initializes the CodeQL tools for scanning.
+      - name: Initialize CodeQL
+        uses: github/codeql-action/init@v2
+        languages: java,javascript,python
+        # Override language selection by uncommenting this and choosing your languages
+        # with:
+        #   languages: go, javascript, csharp, python, cpp, java
+    
+        with:
+          languages: ${{ matrix.language }}
+          queries: security-and-quality
+          # If you wish to specify custom queries, you can do so here or in a config file.
+          # By default, queries listed here will override any specified in a config file.
+          # Prefix the list here with "+" to use these queries and those in the config file.
+          # queries: ./path/to/local/query, your-org/your-repo/queries@main
+          # For GWAM, the 'security-and-quality' query must be included on scans. Any additional
+          # queries can be added or configured, but ensure the queries is prefixed with "+"
+          # per the instructions above.
+          # Details on CodeQL's query packs refer to : https://docs.github.com/en/code-security/code-scanning/automatically-scanning-your-code-for-vulnerabilities-and-errors/configuring-code-scanning#using-queries-in-ql-packs
+          # queries: security-extended,security-and-quality
+    
+      # Autobuild attempts to build any compiled languages (C/C++, C#, or Java).
+      # If this step fails, then you should remove it and run the build manually (see below).
+      - name: Autobuild
+        uses: github/codeql-action/autobuild@v2
+    
+      # ℹ️ Command-line programs to run using the OS shell.
+      # 📚 See https://docs.github.com/en/actions/using-workflows/workflow-syntax-for-github-actions#jobsjob_idstepsrun
+  
+      #   If the Autobuild fails above, remove it and uncomment the following three lines.
+      #   modify them (or add more) to build your code if your project, please refer to the EXAMPLE below for guidance.
+  
+      # - run: |
+      #   echo "Run, Build Application using script"
+      #   ./location_of_script_within_repo/buildscript.sh
+       
+      # WARNING: For dotnet applications, the build command may need to be explicit and include an additional flag per
+      # item #6 on the GitHub troubleshooting guide found at https://docs.github.com/en/code-security/code-scanning/automatically-scanning-your-code-for-vulnerabilities-and-errors/troubleshooting-the-codeql-workflow#no-code-found-during-the-build
+      # - run: |
+      #     dotnet clean \
+      #       && dotnet restore --configfile nuget.config \
+      #       && dotnet build --no-restore /p:UseSharedCompilation=false
+    
+      - name: Perform CodeQL Analysis
+        uses: github/codeql-action/analyze@v2
